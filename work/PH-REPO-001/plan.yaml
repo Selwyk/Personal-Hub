@@ -35,7 +35,7 @@
       "depends_on": [
         "ST-01"
       ],
-      "status": "in_progress"
+      "status": "passed"
     }
   ]
 }

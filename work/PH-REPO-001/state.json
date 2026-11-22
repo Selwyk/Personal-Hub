@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0",
   "task_id": "PH-REPO-001",
-  "updated_at": "2026-11-22T11:42:23.029Z",
-  "stage": "implementation",
-  "status": "in_progress",
+  "updated_at": "2026-11-22T11:45:24.782Z",
+  "stage": "closed",
+  "status": "done",
   "user_acceptance": "unreviewed",
   "delivery_plan": {
     "path": "plan.yaml",
     "plan_revision": 1,
-    "active_stage_id": "ST-02",
+    "active_stage_id": null,
     "stages": [
       {
         "id": "ST-01",
@@ -17,17 +17,20 @@
         "completed_at": "2026-11-22T11:42:23.029Z",
         "evidence": [
           "evidence/publication-review.json",
-          "docs/PUBLICATION.md"
+          "../../docs/PUBLICATION.md"
         ],
         "notes": "Exclusiones y enlaces verificados; código de aplicación conservado."
       },
       {
         "id": "ST-02",
-        "status": "in_progress",
+        "status": "completed",
         "started_at": "2026-11-22T11:42:23.029Z",
-        "completed_at": null,
-        "evidence": [],
-        "notes": "Commit y push específicamente autorizados por el propietario."
+        "completed_at": "2026-11-22T11:45:24.782Z",
+        "evidence": [
+          "evidence/remote-verification.json",
+          "report.md"
+        ],
+        "notes": "Commit inicial verificado por ls-remote y árbol GitHub; rama predeterminada main."
       }
     ]
   },
@@ -46,9 +49,9 @@
     },
     {
       "id": "AC-03",
-      "result": "not_run",
-      "evidence": "",
-      "notes": "Pendiente de completar con evidencia real."
+      "result": "passed",
+      "evidence": "evidence/remote-verification.json",
+      "notes": "SHA remoto coincide con el commit inicial; árbol público de 130 archivos, sin expedientes privados."
     }
   ],
   "tests": [
@@ -67,6 +70,22 @@
       "result": "passed",
       "evidence": "report.md",
       "notes": "Validación contractual ejecutada antes de preparar Git; se repetirá al cerrar."
+    },
+    {
+      "id": "T-03",
+      "procedure": "git ls-remote origin refs/heads/main; gh api git/trees/COMMIT?recursive=1; git status",
+      "environment": "GitHub remoto autorizado y checkout main",
+      "result": "passed",
+      "evidence": "evidence/remote-verification.json",
+      "notes": "SHA exacto, main predeterminada, árbol completo sin archivos privados y checkout limpio tras push inicial."
+    },
+    {
+      "id": "T-04",
+      "procedure": "git diff --cached --check; Python ast.parse",
+      "environment": "Índice y fuente local",
+      "result": "passed",
+      "evidence": "report.md",
+      "notes": "Revisión de formato pasa tras retirar únicamente líneas vacías finales de routes.py; sin cambio funcional."
     }
   ],
   "blockers": [],
@@ -78,12 +97,15 @@
     "docs/PUBLICATION.md",
     "docs/DEPLOYMENT.md",
     "docs/DEVELOPMENT.md",
-    "work/PH-REPO-001/"
+    "work/PH-REPO-001/",
+    "backend/app/core/routes.py"
   ],
   "report_path": "report.md",
-  "next_action": "Commit inicial en main y push normal al remoto vacío autorizado; verificar SHA y árbol remoto.",
+  "next_action": "Primera subida terminada. Mantener PH-CORE-004 detenido; su activación sigue necesitando autorización y acceso privados separados.",
   "extensions": {
     "publication:authorized_remote": "https://github.com/Selwyk/Personal-Hub",
-    "publication:deployment_authorized": false
+    "publication:deployment_authorized": false,
+    "publication:initial_commit": "ef8545ed16b8abac39666f1a5bef655dc606f3f0",
+    "publication:remote_verified": true
   }
 }
