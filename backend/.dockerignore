@@ -1,0 +1,15 @@
+__pycache__
+.pytest_cache
+.ruff_cache
+*.pyc
+.env*
+**/.env*
+*.dump
+*.enc
+*.enc.json
+*.key
+*.pem
+*.p12
+*.pfx
+private
+backups

@@ -1,0 +1,52 @@
+{
+  "name": "personal-hub-tests",
+  "services": {
+    "db": {
+      "image": "postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+      "environment": {
+        "POSTGRES_USER": "fixture",
+        "POSTGRES_PASSWORD": "fixture-only",
+        "POSTGRES_DB": "hub_test"
+      },
+      "tmpfs": [
+        "/var/lib/postgresql"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U fixture -d hub_test"
+        ],
+        "interval": "2s",
+        "timeout": "3s",
+        "retries": 30
+      }
+    },
+    "tests": {
+      "build": {
+        "context": "./backend",
+        "target": "test"
+      },
+      "image": "personal-hub-test:local",
+      "environment": {
+        "DATABASE_URL": "postgresql+psycopg://fixture:fixture-only@db:5432/hub_test",
+        "TOTP_ENCRYPTION_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+        "APP_PUBLIC_URL": "http://localhost:5173",
+        "WEBAUTHN_RP_ID": "localhost",
+        "WEBAUTHN_ORIGINS": "http://localhost:5173",
+        "COOKIE_SECURE": "false",
+        "TASKS_ENABLED": "false"
+      },
+      "volumes": [
+        "./deploy:/deploy:ro"
+      ],
+      "depends_on": {
+        "db": {
+          "condition": "service_healthy"
+        }
+      },
+      "profiles": [
+        "test"
+      ]
+    }
+  }
+}

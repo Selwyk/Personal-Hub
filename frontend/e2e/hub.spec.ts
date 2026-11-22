@@ -1,0 +1,65 @@
+import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+import { createHmac } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
+// Disposable fixture credential. This is NOT a physical FIDO authenticator.
+test.skip(process.env.HUB_JOURNAL_E2E !== '1', 'Requires a dedicated synthetic fixture');
+const password = 'Synthetic fixture password 2026!';
+function totp() {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = '';
+  for (const c of 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP') bits += alphabet.indexOf(c).toString(2).padStart(5, '0');
+  const key = Buffer.from((bits.match(/.{8}/g) || []).map(b => parseInt(b, 2)));
+  const counter = Buffer.alloc(8); counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
+  const digest = createHmac('sha1', key).update(counter).digest(); const offset = digest[19] & 15;
+  return ((digest.readUInt32BE(offset) & 0x7fffffff) % 1000000).toString().padStart(6, '0');
+}
+test('Diario, revisión, permisos, WebAuthn virtual, teclado y móvil', async ({ page, context, request }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  const cdp = await context.newCDPSession(page); await cdp.send('WebAuthn.enable');
+  await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+  await page.goto('/');
+  await page.getByLabel('Usuario', { exact: true }).fill('synthetic'); await page.getByLabel('Contraseña', { exact: true }).fill(password); await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await page.getByLabel('Código de la aplicación', { exact: true }).fill(totp()); await page.getByRole('button', { name: 'Verificar código' }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.getByRole('link', { name: '＋ Nueva entrada', exact: true }).click();
+  await page.getByLabel('Título', { exact: true }).fill('Fixture sintético de investigación');
+  await page.getByLabel('Resumen', { exact: true }).fill('Investigación sintética, sin despliegue ejecutado.');
+  await page.getByLabel('Contenido Markdown', { exact: true }).fill('# Evidencia sintética\nInvestigación en español y English deployment notes.');
+  await page.getByLabel('Tipo de actividad').selectOption('research');
+  await page.getByLabel('Proyectos (separados por comas)').pressSequentially('Proyecto sintético, Segundo proyecto');
+  await page.getByLabel('Etiquetas (separadas por comas)').pressSequentially('fixture, investigación');
+  await page.getByRole('button', { name: 'Vista previa', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Evidencia sintética' })).toBeVisible();
+  await page.getByRole('button', { name: 'Guardar borrador' }).click(); await expect(page).toHaveURL(/entrada\//);
+  await expect(page.getByRole('heading', { name: 'Fixture sintético de investigación', exact: true })).toBeVisible(); await expect(page.getByLabel('Título', { exact: true })).toHaveCount(0); await page.getByRole('button', { name: 'Editar entrada', exact: true }).click(); await page.getByLabel('Título', { exact: true }).fill('Fixture sintético actualizado'); await page.getByRole('button', { name: 'Publicar', exact: true }).click();
+  await expect(page.getByText('Publicado', { exact: true })).toBeVisible(); await page.reload(); await expect(page.getByRole('heading', { name: 'Fixture sintético actualizado', exact: true })).toBeVisible(); await expect(page.getByLabel('Título', { exact: true })).toHaveCount(0);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  const exportEvent = page.waitForEvent('download'); await page.getByRole('button', { name: 'JSON', exact: true }).click(); const exported = await exportEvent; const exportPath = await exported.path(); expect(await readFile(exportPath!, 'utf8')).toContain('Fixture sintético actualizado');
+  await page.getByRole('link', { name: 'Timeline', exact: true }).click(); await page.getByPlaceholder('Título, resumen o contenido').fill('investigación'); await page.getByRole('main').getByRole('button', { name: 'Buscar', exact: true }).click(); await expect(page.getByRole('link', { name: 'Fixture sintético actualizado' })).toBeVisible();
+  await page.getByRole('link', { name: 'Calendario', exact: true }).click(); await expect(page.locator('.calendar-count')).toHaveCount(1);
+  await page.getByRole('link', { name: 'Configuración', exact: true }).click(); await page.getByLabel('Nombre del token', { exact: true }).fill('Fixture collector'); await page.getByRole('button', { name: 'Crear token', exact: true }).click();
+  const token = await page.getByRole('dialog').locator('code').innerText(); await page.getByRole('button', { name: 'He guardado el token' }).click();
+  expect((await request.get('/api/v1/journal/entries', { headers: { Authorization: 'Bearer ' + token } })).status()).toBe(401);
+  const batch = { import_key: 'synthetic-e2e-v1', candidates: [{ occurred_on: '2026-09-01', title: 'Propuesta sintética', summary: 'Solo propuesta', detail_markdown: 'No se ejecutó.', activity_type: 'proposal', evidence_level: 'unverified', projects: ['Proyecto sintético'], tags: ['fixture'], source_type: 'synthetic', source_reference: 'fixture://e2e', external_id: '1', collector_version: 'fixture-v1' }] };
+  const headers = { Authorization: 'Bearer ' + token }; expect((await request.post('/api/v1/ingest/batches', { headers, data: batch })).status()).toBe(200);
+  expect((await request.post('/api/v1/ingest/batches', { headers, data: batch })).status()).toBe(200);
+  await page.getByRole('link', { name: 'Pendientes de revisión', exact: true }).click(); await page.getByRole('button', { name: 'Editar antes de aceptar' }).click(); await page.getByLabel('Título', { exact: true }).fill('Propuesta sintética revisada'); await page.getByRole('button', { name: 'Guardar revisión' }).click(); await expect(page.getByRole('heading', { name: 'Propuesta sintética revisada' })).toBeVisible();
+  await page.getByRole('button', { name: 'Aceptar y crear borrador' }).click(); await expect(page.getByText('No hay candidatos en este estado')).toBeVisible(); await page.getByLabel('Estado de revisión').selectOption('accepted'); await page.getByRole('link', { name: 'Abrir entrada →' }).click(); await expect(page.getByText('Borrador', { exact: true })).toBeVisible(); await expect(page.getByRole('heading', { name: 'Propuesta sintética revisada', exact: true })).toBeVisible(); await expect(page.getByText('Propuesta', { exact: true })).toBeVisible(); await expect(page.getByLabel('Título', { exact: true })).toHaveCount(0); await page.getByRole('button', { name: 'Editar entrada', exact: true }).click(); await page.getByLabel('Título', { exact: true }).fill('Cambio sin guardar'); await page.getByRole('button', { name: 'Cancelar edición', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Propuesta sintética revisada', exact: true })).toBeVisible(); await page.getByRole('button', { name: 'Editar entrada', exact: true }).click(); await expect(page.getByLabel('Título', { exact: true })).toHaveValue('Propuesta sintética revisada'); await expect(page.getByLabel('Tipo de actividad')).toHaveValue('proposal');
+  await page.getByRole('button', { name: 'Eliminar entrada', exact: true }).click(); await page.getByRole('button', { name: 'Cancelar', exact: true }).click(); await page.getByRole('button', { name: 'Eliminar entrada', exact: true }).click(); await page.getByRole('button', { name: 'Confirmar eliminación' }).click(); await expect(page.getByRole('heading', { name: 'Timeline', exact: true })).toBeVisible();
+  const discardBatch = { ...batch, import_key: 'synthetic-discard-v1', candidates: [{ ...batch.candidates[0], external_id: '2', title: 'Candidato sintético descartable' }] }; expect((await request.post('/api/v1/ingest/batches', { headers, data: discardBatch })).status()).toBe(200);
+  await page.getByRole('link', { name: 'Pendientes de revisión', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Candidato sintético descartable' })).toBeVisible(); page.once('dialog', dialog => dialog.accept()); await page.getByRole('button', { name: 'Descartar', exact: true }).click(); await expect(page.getByText('No hay candidatos en este estado')).toBeVisible();
+  await page.getByRole('link', { name: 'Historial de importaciones', exact: true }).click(); await expect(page.getByRole('heading', { name: 'synthetic-discard-v1', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Configuración', exact: true }).click(); await page.getByLabel('Nombre de la nueva llave').fill('Llave virtual fixture'); await page.getByRole('button', { name: 'Registrar llave', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Bienvenido a tu Hub' })).toBeVisible();
+  await page.getByLabel('Usuario', { exact: true }).fill('synthetic'); await page.getByLabel('Contraseña', { exact: true }).fill(password); await page.getByRole('button', { name: 'Entrar', exact: true }).click(); await page.getByLabel('Confiar en este navegador durante 30 días').check(); await page.getByRole('button', { name: 'Usar llave de seguridad' }).click(); await page.getByRole('link', { name: 'Dashboard', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click(); await page.getByLabel('Usuario', { exact: true }).fill('synthetic'); await page.getByLabel('Contraseña', { exact: true }).fill(password); await page.getByRole('button', { name: 'Entrar', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Configuración', exact: true }).click(); await page.getByLabel('Nombre del token', { exact: true }).fill('Step-up required fixture'); await page.getByRole('button', { name: 'Crear token', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Confirma contraseña');
+  await page.getByRole('button', { name: 'Confirmar identidad', exact: true }).click(); await page.getByLabel('Contraseña actual').fill(password); await page.getByRole('button', { name: 'Confirmar con llave', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(0); await page.getByRole('button', { name: 'Crear token', exact: true }).click(); await page.getByRole('button', { name: 'He guardado el token' }).click(); await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible(); await page.getByRole('button', { name: 'Activar tema oscuro' }).click(); expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: fileURLToPath(new URL('../../.runtime/dashboard-synthetic-dark.png', import.meta.url)), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 }); await page.getByRole('button', { name: 'Menú', exact: true }).click(); await page.getByRole('link', { name: 'Hoy', exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]); await page.screenshot({ path: fileURLToPath(new URL('../../.runtime/mobile-synthetic.png', import.meta.url)), fullPage: true });
+  await page.keyboard.press('Tab'); expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('BODY'); expect(errors).toEqual([]);
+});

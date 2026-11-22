@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PH-REPO-001",
+  "updated_at": "2026-11-22T11:42:23.029Z",
+  "stage": "implementation",
+  "status": "in_progress",
+  "user_acceptance": "unreviewed",
+  "delivery_plan": {
+    "path": "plan.yaml",
+    "plan_revision": 1,
+    "active_stage_id": "ST-02",
+    "stages": [
+      {
+        "id": "ST-01",
+        "status": "completed",
+        "started_at": "2026-11-22T11:40:29.588Z",
+        "completed_at": "2026-11-22T11:42:23.029Z",
+        "evidence": [
+          "evidence/publication-review.json",
+          "docs/PUBLICATION.md"
+        ],
+        "notes": "Exclusiones y enlaces verificados; código de aplicación conservado."
+      },
+      {
+        "id": "ST-02",
+        "status": "in_progress",
+        "started_at": "2026-11-22T11:42:23.029Z",
+        "completed_at": null,
+        "evidence": [],
+        "notes": "Commit y push específicamente autorizados por el propietario."
+      }
+    ]
+  },
+  "criterion_results": [
+    {
+      "id": "AC-01",
+      "result": "passed",
+      "evidence": "report.md",
+      "notes": "GitHub CLI: remoto vacío/público, cuenta Selwyk, permiso ADMIN."
+    },
+    {
+      "id": "AC-02",
+      "result": "passed",
+      "evidence": "evidence/publication-review.json; report.md",
+      "notes": "Snapshot allowlisted, sin hallazgos privados o secretos conocidos y sin enlaces Markdown rotos."
+    },
+    {
+      "id": "AC-03",
+      "result": "not_run",
+      "evidence": "",
+      "notes": "Pendiente de completar con evidencia real."
+    }
+  ],
+  "tests": [
+    {
+      "id": "T-01",
+      "procedure": "scripts/check-boundaries.py; deploy/check-privacy.py; review-publication.mjs",
+      "environment": "Checkout Personal, sin conexiones a bases ni host",
+      "result": "passed",
+      "evidence": "evidence/publication-review.json",
+      "notes": "Fronteras correctas; 129 archivos revisados inicialmente, 72 secretos sintéticos contrastados, sin filtraciones. La evidencia añade un archivo portable."
+    },
+    {
+      "id": "T-02",
+      "procedure": "scripts/validate-agent-work.py work/PH-REPO-001",
+      "environment": "Python local",
+      "result": "passed",
+      "evidence": "report.md",
+      "notes": "Validación contractual ejecutada antes de preparar Git; se repetirá al cerrar."
+    }
+  ],
+  "blockers": [],
+  "pending_approval": null,
+  "modified_files": [
+    ".gitignore",
+    "README.md",
+    "AGENTS.md",
+    "docs/PUBLICATION.md",
+    "docs/DEPLOYMENT.md",
+    "docs/DEVELOPMENT.md",
+    "work/PH-REPO-001/"
+  ],
+  "report_path": "report.md",
+  "next_action": "Commit inicial en main y push normal al remoto vacío autorizado; verificar SHA y árbol remoto.",
+  "extensions": {
+    "publication:authorized_remote": "https://github.com/Selwyk/Personal-Hub",
+    "publication:deployment_authorized": false
+  }
+}

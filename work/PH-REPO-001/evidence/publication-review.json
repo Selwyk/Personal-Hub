@@ -1,0 +1,12 @@
+{
+  "result": "passed",
+  "files": 129,
+  "known_synthetic_secrets_checked": 72,
+  "findings": [],
+  "broken_markdown_links": [],
+  "excluded_operational_dossiers": [
+    "work/PH-CORE-003/",
+    "work/PH-CORE-004/"
+  ],
+  "review_scope": "Git-eligible allowlisted source only; no upload of private dossiers"
+}

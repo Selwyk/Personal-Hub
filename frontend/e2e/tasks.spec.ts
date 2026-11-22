@@ -1,0 +1,90 @@
+import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+import { createHmac } from 'node:crypto';
+
+// Only the disposable fixture stack from the own scripts/run-e2e.py fixture.
+test.skip(process.env.HUB_TASKS_E2E !== '1', 'Requires isolated Tasks fixture stack');
+function totp() {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = '';
+  for (const c of 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP') bits += alphabet.indexOf(c).toString(2).padStart(5, '0');
+  const key = Buffer.from((bits.match(/.{8}/g) || []).map(b => parseInt(b, 2)));
+  const counter = Buffer.alloc(8); counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
+  const digest = createHmac('sha1', key).update(counter).digest(); const offset = digest[19] & 15;
+  return ((digest.readUInt32BE(offset) & 0x7fffffff) % 1000000).toString().padStart(6, '0');
+}
+
+test('Tareas: CRUD, conflictos, exportación, teclado, móvil y accesibilidad', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  page.on('response', response => { if (response.status() >= 500) errors.push(`HTTP ${response.status()}`); });
+  await page.goto('/');
+  await page.getByLabel('Usuario', { exact: true }).fill('synthetic');
+  await page.getByLabel('Contraseña', { exact: true }).fill('Synthetic fixture password 2026!');
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await page.getByLabel('Código de la aplicación', { exact: true }).fill(totp());
+  await page.getByRole('button', { name: 'Verificar código' }).click();
+  await page.getByRole('link', { name: 'Tareas', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tareas', exact: true })).toBeVisible();
+  await expect(page.getByText('No hay tareas con estos filtros')).toBeVisible();
+  const title = 'Tarea sintética PH-CORE-001';
+  await page.getByRole('button', { name: 'Nueva tarea', exact: true }).click();
+  await page.getByLabel('Título', { exact: true }).fill(title);
+  await page.getByLabel('Descripción', { exact: true }).fill('Descripción sintética sin información real');
+  await page.getByRole('combobox', { name: 'Prioridad', exact: true }).selectOption('high');
+  await page.getByLabel('Vencimiento opcional').fill('2026-12-31');
+  await page.getByLabel('Proyectos (separados por comas)').fill('Proyecto sintético');
+  await page.getByLabel('Etiquetas (separadas por comas)').fill('fixture, personal-sintético');
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.getByRole('button', { name: 'Guardar tarea' }).click();
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await page.getByRole('button', { name: 'Editar ' + title }).click();
+  await page.getByLabel('Título', { exact: true }).fill(title + ' editada');
+  await page.getByRole('button', { name: 'Guardar tarea' }).click();
+  await expect(page.getByRole('heading', { name: title + ' editada' })).toBeVisible();
+  await page.getByRole('button', { name: 'Completar ' + title + ' editada' }).click();
+  await expect(page.getByRole('region', { name: 'Lista de tareas' }).getByText('Completada', { exact: true })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Filtrar por estado' }).selectOption('todo');
+  await expect(page.getByText('No hay tareas con estos filtros')).toBeVisible();
+  await page.getByRole('combobox', { name: 'Filtrar por estado' }).selectOption('completed');
+  await expect(page.getByRole('heading', { name: title + ' editada' })).toBeVisible();
+  await page.getByRole('button', { name: 'Editar ' + title + ' editada' }).click();
+  await page.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('todo');
+  await page.getByLabel('Vencimiento opcional').fill('');
+  // Another client edits the same row while the browser has an older version.
+  const csrf = (await (await page.request.get('/api/v1/auth/csrf')).json()).csrf_token;
+  const task = (await (await page.request.get('/api/v1/tasks')).json()).items[0];
+  const response = await page.request.put('/api/v1/tasks/' + task.id, { headers: { Origin: process.env.HUB_E2E_URL!, 'X-CSRF-Token': csrf },
+    data: { title: title + ' desde otro cliente', version: task.version, status: 'in_progress' } });
+  expect(response.status()).toBe(200);
+  await page.getByRole('button', { name: 'Guardar tarea' }).click();
+  await expect(page.getByRole('alert')).toContainText('La tarea ha cambiado');
+  await expect(page.getByRole('combobox', { name: 'Estado', exact: true })).toHaveValue('todo');
+  await page.getByRole('button', { name: 'Descartar cambios y recargar tarea' }).click();
+  await expect(page.getByLabel('Título', { exact: true })).toHaveValue(title + ' desde otro cliente');
+  await page.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('todo');
+  await page.getByRole('button', { name: 'Guardar tarea' }).click();
+  await page.getByRole('combobox', { name: 'Filtrar por estado' }).selectOption('');
+  await expect(page.getByRole('heading', { name: title + ' desde otro cliente' })).toBeVisible();
+  await expect(page.getByText('Sin vencimiento', { exact: true })).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exportar tareas · JSON' }).click();
+  expect((await download).suggestedFilename()).toBe('tasks.json');
+  const exported = await page.request.get('/api/v1/tasks/export');
+  const payload = await exported.json();
+  expect(payload.schema_version).toBe(1); expect(payload.tasks).toHaveLength(1);
+  expect(payload.tasks[0].status).toBe('todo'); expect(payload.tasks[0].completed_at).toBeNull();
+  expect(payload.tasks[0].due_on).toBeNull();
+  await page.screenshot({ path: '../.runtime/ph-core-001/tasks-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Nueva tarea', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Título', { exact: true })).toBeVisible();
+  await page.getByLabel('Título', { exact: true }).fill('Tarea sintética sin fecha');
+  await page.getByRole('button', { name: 'Guardar tarea' }).click();
+  await expect(page.getByRole('heading', { name: 'Tarea sintética sin fecha' })).toBeVisible();
+  await page.screenshot({ path: '../.runtime/ph-core-001/tasks-mobile.png', fullPage: true });
+  expect(errors).toEqual([]);
+});

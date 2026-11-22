@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "id": "PH-REPO-001",
+  "title": "Primera subida pública de Personal Hub",
+  "type": "chore",
+  "profile": "web-app",
+  "autonomy": "balanced",
+  "risk": "high",
+  "origin": {
+    "kind": "manual",
+    "repository": "https://github.com/Selwyk/Personal-Hub",
+    "work_item": null
+  },
+  "objective": "Publicar una línea base revisada del código Personal en el remoto indicado.",
+  "scope": {
+    "in": [
+      "Revisión del índice y privacidad",
+      "Exclusión sin borrado de expedientes operativos locales",
+      "Documentación portable y contrato de publicación",
+      "Commit y push autorizados al repositorio indicado, verificación de lectura"
+    ],
+    "out": [
+      "Despliegue o migraciones reales",
+      "Publicación de imágenes o releases",
+      "Datos, secretos, inventarios y registros privados",
+      "Cambios de Work Hub o del original",
+      "Force push o sustitución de historial remoto"
+    ]
+  },
+  "invariants": [
+    "Preservar expedientes locales y cambios previos",
+    "Solo producto personal",
+    "Ninguna autorización de despliegue se infiere de GitHub"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-01",
+      "description": "Raíz Personal y remoto solicitado verificados; identidad y visibilidad conocidas.",
+      "verification": "automated"
+    },
+    {
+      "id": "AC-02",
+      "description": "Snapshot público revisado sin secretos ni expedientes operativos privados; documentación y verificaciones correctas.",
+      "verification": "automated"
+    },
+    {
+      "id": "AC-03",
+      "description": "Línea base comprometida y subida a main del remoto indicado sin force ni cambios en otros productos.",
+      "verification": "automated"
+    }
+  ],
+  "references": [
+    "CONTRACT.md",
+    "docs/PUBLICATION.md"
+  ],
+  "notes": "Autorización específica del propietario en este chat: primera subida al remoto indicado. Remoto vacío y público, cuenta Selwyk con ADMIN, comprobados antes de cambios Git."
+}

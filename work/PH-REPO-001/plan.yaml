@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "task_id": "PH-REPO-001",
+  "plan_revision": 1,
+  "summary": "Auditar snapshot público, commit y push normales a remoto vacío autorizado.",
+  "stages": [
+    {
+      "id": "ST-01",
+      "title": "Snapshot público revisado",
+      "value": "Evita publicar información operativa privada y mantiene un clon utilizable.",
+      "deliverables": [
+        "docs/PUBLICATION.md",
+        "Exclusiones y documentación portable",
+        "Revisión del índice"
+      ],
+      "acceptance_criteria": [
+        "AC-01",
+        "AC-02"
+      ],
+      "depends_on": [],
+      "status": "passed"
+    },
+    {
+      "id": "ST-02",
+      "title": "Línea base remota verificada",
+      "value": "Permite continuar el desarrollo desde el remoto autorizado.",
+      "deliverables": [
+        "Commit inicial",
+        "main en GitHub",
+        "Lectura de SHA y árbol publicados"
+      ],
+      "acceptance_criteria": [
+        "AC-03"
+      ],
+      "depends_on": [
+        "ST-01"
+      ],
+      "status": "in_progress"
+    }
+  ]
+}

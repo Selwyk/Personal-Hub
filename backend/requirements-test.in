@@ -1,0 +1,7 @@
+-r requirements.in
+-c requirements.lock
+pytest==9.1.1
+httpx==0.28.1
+ruff==0.15.0
+# Remove compromised CA roots from the test HTTP client trust store (PH-CORE-004).
+certifi==2026.10.18
